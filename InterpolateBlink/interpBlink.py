@@ -19,14 +19,14 @@ def main():
 
     # 平滑化処理をするときの移動平均の幅.
     # ここの値を変えると平均をとる幅が変わる
-    windowWidth = 50
+    windowWidth = 100
 
     # [A] (デバッグ用) 特定のcsvファイル一つだけを実行する場合はこちら
 #     SpecificCsvFile = "視線データ/1211_1_1/bd/bd5.csv"
 #     MakeInterpolatedCsv(SpecificCsvFile, windowWidth)
 
     # [B] このスクリプトが置かれた場所からファイルを探索して信号処理を行う
-    LoopProcessDir(windowWidth)
+    ProcessDir(windowWidth)
 
 
 ###############################
@@ -34,13 +34,18 @@ def main():
 ###############################
 def interpCsv(fi, _windowWidth):
 
-    print("\n  - - - Start interpCsv() - - -")
+    print("\n- - - Start interpCsv() - - -")
 
     ###############################
     # データ読み込みと前処理
     ###############################
     colnames = ["left", "right", "leftValid", "rightValid"] # 列名を作成
     df = pd.read_csv(fi, header = None, names = colnames) # 作成した列名でcsv読み込み
+    # header=Noneにしてるのに1行目に名前が入っちゃうとき用
+    if type(df.iloc[0,0]) is str:
+        df = df.drop([0]) # "Pupil duration right"とかの行を消す
+
+
     print(df.head()) # 最初の5行表示してデータの様子をチラ見
     print("NAの行数:\n" + str(len(df) - df.count())) # データの様子をチラ見
 
@@ -103,11 +108,15 @@ def interpCsv(fi, _windowWidth):
     ###############################
     # グラフ表示
     ###############################
-    x = pd.Series(range(0, len(df.left), 1)) # グラフ表示用のx軸の値
+    plt.figure(figsize=(15, 5)) # グラフの画像のサイズと解像度
 
-    plt.plot(x, y_left, linewidth = 1.0, label='After Interpolate')   # 線形補間 後のグラフ
-    plt.plot(x, df.left, linewidth = 1.0, label='Before Interpolate') # 線形補間 前のグラフ
-    plt.plot(x, y_left_rol, linewidth = 1.0, label='After Moving Average') # 移動平均後のグラフ
+    x = pd.Series(range(0, len(df.left), 1)) # グラフ表示用のx軸の値
+    lw = 0.4 # グラフの線の太さ
+
+
+    plt.plot(x, y_left, linewidth = lw, color = '#6ec16b', label='After Interpolate')   # 線形補間 後のグラフ
+    plt.plot(x, df.left, linewidth = lw, color = '#ff9933', label='Before Interpolate') # 線形補間 前のグラフ
+    plt.plot(x, y_left_rol, linewidth = lw, color = '#69a3d2', label='After Moving Average') # 移動平均後のグラフ
     plt.legend() # 凡例を表示する
     plt.title('') # タイトルここに入力
     plt.xlabel('Time Series index') # x軸のラベル
@@ -115,13 +124,13 @@ def interpCsv(fi, _windowWidth):
 
     # plt.show() # グラフ表示
     # 画像保存用のフォルダがなければ作る
-    if not os.path.isdir('視線データ/img'):
-        os.mkdir('視線データ/img') # ディレクトリ作る
+    if not os.path.isdir('data/img'):
+        os.mkdir('data/img') # ディレクトリ作る
     pngName = fi.strip(".csv")
-    pngName = pngName.strip("視線データ/")
+    pngName = pngName.strip("data/")
     pngName = pngName.replace('/', '_')
     print("  Saved " + pngName + ".png")
-    plt.savefig("視線データ/img/" + pngName + '.png')
+    plt.savefig("data/img/" + pngName + '.png')
     plt.clf() # グラフクリア
 
 #     plt.plot(x, y_right) # 線形補間 後のグラフ
@@ -137,7 +146,7 @@ def interpCsv(fi, _windowWidth):
     print("\nOutput : \n")
     print(outputDataFrame.head())
 
-    print("  - - - End interpCsv() - - -\n")
+    print("- - - End interpCsv() - - -\n")
 
 
     return outputDataFrame
@@ -145,47 +154,19 @@ def interpCsv(fi, _windowWidth):
 
 
 
-
-
 ###############################
-# ディレクトリで処理を回す関数
+# ディレクトリ直下のcsvファイルに対して線形補間処理を提示する関数
 ###############################
-def LoopProcessDir(_windowWidth):
-    dataRootPath = "視線データ/"
-    dirList = os.listdir(dataRootPath) # dataRootPath内に存在するディレクトリ一覧取得
-
-    edMatTypes = ["bd", "nw", "an"]
-
-    arg = sys.argv
-    if len(arg) == 2:
-        if arg[1] == "an":
-            edMatTypes = ["an"]
-            print("###########################################")
-            print("#    EXECUTE ONLY an FILES !!!!!!!!!!!    #")
-            print("###########################################")
-    else:
-        print("EXECUTE bd, nw, an FILES")
-
-    print( "Length of Directries : " + str(len(dirList)) )
-
-    # 取得したディレクトリ一覧の数分だけループを回す
-    for fileNum in range(1, len(dirList), 1):
-        # "bd"か"nw"かでループを回す
-        for edMatType in edMatTypes:
-            # 取得したディレクトリの中に存在してるcsvファイルの数分だけパスを取得
-            path = str(dataRootPath + dirList[fileNum]) + "/" + edMatType + "/"
-
-            if edMatType == "an":
-            	fileList = glob.glob(path + edMatType + '.csv')
-            else:
-            	fileList = glob.glob(path + edMatType + '[0-9].csv') # 数値部分は正規表現
-
-            # 取得したディレクトリ内に"bd1.csv"とかいう名前のファイルが一つでもあれば
-            if(fileList is not None):
-                # "bd1.csv", "bd2.csv", ...とファイルの数分だけループを回す
-                for file in fileList:
-                    # 線形補間の処理へ
-                    MakeInterpolatedCsv(file, _windowWidth)
+def ProcessDir(_windowWidth):
+    # 取得したディレクトリの中に存在してるcsvファイルの数分だけパスを取得
+    dataRootPath = "data/"
+    fileList = glob.glob(dataRootPath + '[0-9].csv') # 数値部分は正規表現
+    # 取得したディレクトリ内に"1.csv"とかいう名前のファイルが一つでもあれば
+    if(fileList is not None):
+        # "1.csv", "2.csv", ...とファイルの数分だけループを回す
+        for file in fileList:
+            # 線形補間の処理へ
+            MakeInterpolatedCsv(file, _windowWidth)
 
 
 
@@ -200,34 +181,23 @@ def MakeInterpolatedCsv(_file, _windowWidth):
     # 線形補間の処理
     outputDf = interpCsv(_file, _windowWidth)
 
-    # 無理やり特急工事...
-    filePath = ""
-    fileId = "0"
-    fileEdMatType = ""
-
-    if _file.strip(".csv")[-2:] == "an":
-        filePath = _file.strip("an.csv") # パスのうち"an/an.csv"を除いたパス
+    dataRootPath = "data/"
+    fileId = _file.strip(dataRootPath) # 番号("1.csv"のうち"1")だけ取り出し
+    fileId = fileId.strip(".csv") # 番号("1.csv"のうち"1")だけ取り出し
+    
+    # "processed"というディレクトリがなければ作るし、あれば何もしない
+    if not os.path.isdir(dataRootPath + 'processed'):
+        os.mkdir(dataRootPath + 'processed') # ディレクトリ作る
+        print(" >> Made : " + dataRootPath + 'processed')
     else:
-        fileId = _file.strip(".csv")[-1] # 番号("bd1.csv"のうち"1")だけ取り出し
-        fileEdMatType = _file.strip(fileId + ".csv")[-2:] # "bd1.csv"のうち"bd"
-        filePath = _file.strip(fileEdMatType + fileId + ".csv") # パスのうち"bd1.csv"を除いたパス
-
-    # "補間済"というディレクトリがなければ作るし、あれば何もしない
-    if not os.path.isdir(filePath + '補間済'):
-        os.mkdir(filePath + '補間済') # ディレクトリ作る
-        print(" >> Made : " + filePath + '補間済')
-    else:
-        print(" >> Already Exist : " + filePath + "補間済")
+        print(" >> Already Exist : " + dataRootPath + "processed")
 
     # 出力用のパス作成
-    if _file.strip(".csv")[-2:] == "an":
-    	outputCsvPath = filePath + '補間済/an_pd.csv'
-    else:
-    	outputCsvPath = filePath + '補間済/' + fileEdMatType + fileId + '_pd.csv'
+    outputCsvPath = dataRootPath + 'processed/' + fileId + '_pd.csv'
     # csv出力
     outputDf.to_csv(outputCsvPath, index = None)
 
-    print("> Writing " + outputCsvPath + " ... \n\n")
+    print("\n> Writing " + outputCsvPath + " ... \n\n")
 
 
 
