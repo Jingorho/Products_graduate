@@ -160,10 +160,10 @@ def interpCsv(fi, _windowWidth):
 def ProcessDir(_windowWidth):
     # 取得したディレクトリの中に存在してるcsvファイルの数分だけパスを取得
     dataRootPath = "data/"
-    fileList = glob.glob(dataRootPath + '[0-9].csv') # 数値部分は正規表現
-    # 取得したディレクトリ内に"1.csv"とかいう名前のファイルが一つでもあれば
+    fileList = glob.glob(dataRootPath + '*.csv') # 数値部分は正規表現, 1.csvとかなら'[0-9].csv'
+    # 取得したディレクトリ内にcsvファイルが一つでもあれば
     if(fileList is not None):
-        # "1.csv", "2.csv", ...とファイルの数分だけループを回す
+        # ファイルの数分だけループを回す
         for file in fileList:
             # 線形補間の処理へ
             MakeInterpolatedCsv(file, _windowWidth)
